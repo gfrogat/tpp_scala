@@ -16,14 +16,13 @@ val sparkVersion = "2.4.3"
 /* Exclude xml-apis to avoid dependency erros when building fat jar */
 libraryDependencies += "org.openscience.cdk" % "cdk-bundle" % "2.1.1" exclude ("xml-apis", "xml-apis")
 libraryDependencies += "de.zbit.jcmapper" % "jcompoundmapper" % "1.1" exclude ("xml-apis", "xml-apis")
-libraryDependencies += "org.apache.spark" %% "spark-core" % sparkVersion % "provided"
-libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion % "provided"
+libraryDependencies += "com.github.scopt" %% "scopt" % "3.7.1"
+libraryDependencies += "org.apache.spark" %% "spark-core" % sparkVersion //% "provided"
+libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion //% "provided"
+
+mainClass := Some("at.jku.ml.SparseFeatureCalculator")
 
 assemblyMergeStrategy in assembly := {
-  //case PathList("xml-apis", xs @ _*) =>
-  //  MergeStrategy.first
-  //case PathList("org", "w3c", "dom", "UserDataHandler.class") =>
-  // MergeStrategy.first
   case "header.txt"       => MergeStrategy.discard
   case "log4j.properties" => MergeStrategy.first
   case x =>
@@ -46,9 +45,6 @@ assemblyShadeRules in assembly := Seq(
   ShadeRule
     .rename("joda-time.**" -> "repackaged.joda-time.@1")
     .inAll,
-  /*ShadeRule
-    .rename("xml-apis.**" -> "repackaged.xml-apis.@1")
-    .inAll,*/
   ShadeRule
     .rename("io.netty.**" -> "repackaged.io.netty.@1")
     .inAll
