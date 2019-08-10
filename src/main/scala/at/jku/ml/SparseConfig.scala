@@ -6,7 +6,7 @@ import de.zbit.jcmapper.fingerprinters.EncodingFingerprint
 import de.zbit.jcmapper.fingerprinters.topological.Encoding2D
 import de.zbit.jcmapper.tools.moltyping.enumerations.EnumerationsAtomTypes.AtomLabelType
 
-object Config {
+object SparseConfig {
   object ECFC4 extends SparseFeature {
     override val featureName: String = "ECFC4"
 
@@ -58,13 +58,13 @@ object Config {
     fp.asInstanceOf[Encoding2D].setSearchDepth(searchDepth)
   }
 
-  def getSparseFeatures(): Seq[SparseFeature] = {
-    Config.ECFC4 :: Config.DFS8 :: Config.ECFC6 :: Nil
+  def getFeatures(): Seq[SparseFeature] = {
+    ECFC4 :: DFS8 :: ECFC6 :: Nil
   }
 
-  def getSparseSchema(): StructType = {
-    val fields: Seq[StructField] = getSparseFeatures().flatMap {
-      sparseFeature =>
+  def getSchema(): StructType = {
+    val fields: Seq[StructField] = getFeatures().flatMap {
+      sparseFeature: SparseFeature =>
         sparseFeature.getSchema()
     }
     val schema = StructType(fields)
