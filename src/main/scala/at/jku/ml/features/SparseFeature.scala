@@ -24,9 +24,18 @@ trait SparseFeature extends Feature {
     schema
   }
 
-  def initializeFeature(fpName: String): EncodingFingerprint = {
-    val fingerprintType: FingerprintType = FingerprintType.valueOf(fpName)
+  def initializeFingerprinter(fpType: String): EncodingFingerprint = {
+    val fingerprintType: FingerprintType = FingerprintType.valueOf(fpType)
     FingerPrinterFactory.getFingerprinter(fingerprintType)
+  }
+
+  def initializeFeature(fpType: String): EncodingFingerprint = {
+    fpType match {
+      case "ECFC" => initializeFingerprinter("ECFC")
+      case "DFS"  => initializeFingerprinter("DFS")
+      case "ECFP" => initializeFingerprinter("ECFP")
+      case _      => throw new IllegalArgumentException("fpType is not supported")
+    }
   }
 
   def computeStringFeature(molecule: IAtomContainer): Try[Seq[String]] = Try {
