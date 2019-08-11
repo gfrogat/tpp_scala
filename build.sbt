@@ -21,7 +21,7 @@ libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.0-RC2"
 libraryDependencies += "org.apache.spark" %% "spark-core" % sparkVersion % "provided"
 libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion % "provided"
 
-//mainClass := Some("at.jku.ml.FeatureCalculator")
+mainClass := Some("at.jku.ml.FeatureCalculator")
 
 assemblyMergeStrategy in assembly := {
   case "header.txt"       => MergeStrategy.discard

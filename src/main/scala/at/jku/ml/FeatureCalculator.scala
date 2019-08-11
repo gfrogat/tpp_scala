@@ -5,51 +5,47 @@ import java.nio.file.{Files, Path, Paths}
 
 import at.jku.ml.features.{BitFeature, FrequencyFeature, SparseFeature}
 import at.jku.ml.util.MolFileReader
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions._
 import scopt.OParser
 
 object FeatureCalculator {
   val calculateSparseFeatures: UserDefinedFunction = udf(
-    (molFile: String) =>
-      Row {
-        val molecule = MolFileReader.parseMolFile(molFile)
-        val sparseFeatures: Seq[Seq[String]] = SparseConfig
-          .getFeatures
-          .map { feature: SparseFeature =>
-            feature.computeFeature(molecule)
-          }
+    (molFile: String) => {
+      val molecule = MolFileReader.parseMolFile(molFile)
+      val sparseFeatures: Seq[Seq[String]] = SparseConfig.getFeatures
+        .map { feature: SparseFeature =>
+          feature.computeFeature(molecule)
+        }
 
-        Row(sparseFeatures: _*)
-      },
+      Row(sparseFeatures: _*)
+    },
     SparseConfig.getSchema
   )
 
   val calculateSemiSparseFeatures: UserDefinedFunction = udf(
-    (molFile: String) =>
-      Row {
-        val molecule = MolFileReader.parseMolFile(molFile)
-        val frequencyFeatures: Seq[Seq[Any]] =
-          SemiSparseConfig
-            .getFrequencyFeatures
-            .map { feature: FrequencyFeature =>
-              feature.computeFeature(molecule)
-            }
-            .flatMap { tuple =>
-              List(tuple._1, tuple._2)
-            }
-
-        val bitFeatures: Seq[Seq[Int]] =
-          SemiSparseConfig.getBitFeatures.map { feature: BitFeature =>
+    (molFile: String) => {
+      val molecule = MolFileReader.parseMolFile(molFile)
+      val frequencyFeatures: Seq[Seq[Any]] =
+        SemiSparseConfig.getFrequencyFeatures
+          .map { feature: FrequencyFeature =>
             feature.computeFeature(molecule)
           }
+          .flatMap { tuple =>
+            List(tuple._1, tuple._2)
+          }
 
-        Row.merge(
-          Row(bitFeatures: _*),
-          Row(frequencyFeatures: _*)
-        )
-      },
+      val bitFeatures: Seq[Seq[Int]] =
+        SemiSparseConfig.getBitFeatures.map { feature: BitFeature =>
+          feature.computeFeature(molecule)
+        }
+
+      Row.merge(
+        Row(bitFeatures: _*),
+        Row(frequencyFeatures: _*)
+      )
+    },
     SemiSparseConfig.getSchema
   )
 
@@ -81,7 +77,8 @@ object FeatureCalculator {
           .valueName("<feature>")
           .action((x, c) => c.copy(featureType = x))
           .validate(
-            x => x match {
+            x =>
+              x match {
                 case "sparse" | "semisparse" => success
                 case _ =>
                   failure("Only [sparse, semisparse] features are supported!")
@@ -98,9 +95,16 @@ object FeatureCalculator {
       case Some(config) =>
         val inputPath: Path = Paths.get(config.inputPath)
         val outputPath: Path = Paths.get(config.outputPath)
+        val featureType: String = config.featureType
         val writeMode: String = if (config.overwrite) "overwrite" else "error"
 
-        val calculateFeatures = config.featureType match {
+        val descriptorColumnName: String = featureType + "_descriptors"
+        val descriptorSchema = featureType match {
+          case "sparse" => SparseConfig.getSchema
+          case "semisparse" => SemiSparseConfig.getSchema
+        }
+
+        val calculateFeatures = featureType match {
           case "sparse"     => calculateSparseFeatures
           case "semisparse" => calculateSemiSparseFeatures
         }
@@ -139,7 +143,6 @@ object FeatureCalculator {
           case ioe: IOException => System.err.println(ioe.getMessage)
         }
 
-      /*
         val name = "SparseFeatureCalculator"
         val spark = SparkSession.builder
           .appName(name)
@@ -151,19 +154,18 @@ object FeatureCalculator {
           .getOrCreate()
 
         try {
-          val df = spark.read.parquet(inputPath.toString).repartition(200)
-          val dfFiltered = df.filter(size(col("molfile")).equalTo(1))
+          val df = spark.read.parquet(inputPath.toString).limit(1000)
+          //.repartition(200)
 
-          val dfCleaned = dfFiltered.withColumn("mol_file_single", explode(col("mol_file"))).select(
-            col("inchikey"), col("mol_file_single").alias("mol_file"), col("activity"), col("index")
-          )
+          val dfColumns = df.schema.fields.map{f => col(f.name)}
+          val descriptorColumns = descriptorSchema.fields.map{f => col(descriptorColumnName + "." + f.name)}
+          val queryColumns = dfColumns ++ descriptorColumns
 
-          val dfResult = dfCleaned.withColumn("descriptors", calculateFeatures(col("mol_file"))).select("inchikey", "mol_file", "activity", "index", "descriptors.*")
+          val dfResult = df.withColumn(descriptorColumnName, calculateFeatures(col("mol_file"))).select(queryColumns: _*)
           dfResult.write.mode(writeMode).parquet(outputPath.toString)
         } finally {
           spark.stop()
         }
-       */
       case _ =>
       // arguments are bad, error message will have been displayed
     }
