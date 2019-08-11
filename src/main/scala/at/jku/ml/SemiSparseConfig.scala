@@ -50,21 +50,21 @@ object SemiSparseConfig {
     // SHED does not utilize search depth argument
   }
 
-  def getFeatures(): Seq[Feature] = {
-    getBitFeatures() ++ getFrequencyFeatures()
+  def getFeatures: Seq[Feature] = {
+    getBitFeatures ++ getFrequencyFeatures
   }
 
-  def getBitFeatures(): Seq[BitFeature] = {
+  def getBitFeatures: Seq[BitFeature] = {
     PubChemFP :: Nil
   }
 
-  def getFrequencyFeatures(): Seq[FrequencyFeature] = {
+  def getFrequencyFeatures: Seq[FrequencyFeature] = {
     CATS2D :: SHED :: Nil
   }
 
-  def getSchema(): StructType = {
-    val fields: Seq[StructField] = getFeatures().flatMap { feature =>
-      feature.getSchema()
+  def getSchema: StructType = {
+    val fields: Seq[StructField] = getFeatures.flatMap { feature: Feature =>
+      feature.getSchema
     }
     val schema = StructType(fields)
     schema

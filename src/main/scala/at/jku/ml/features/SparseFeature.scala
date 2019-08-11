@@ -2,10 +2,7 @@ package at.jku.ml.features
 
 import de.zbit.jcmapper.fingerprinters.FingerPrinterFactory.FingerprintType
 import de.zbit.jcmapper.fingerprinters.features.IFeature
-import de.zbit.jcmapper.fingerprinters.{
-  EncodingFingerprint,
-  FingerPrinterFactory
-}
+import de.zbit.jcmapper.fingerprinters.{EncodingFingerprint, FingerPrinterFactory}
 import org.apache.spark.sql.types._
 import org.openscience.cdk.interfaces.IAtomContainer
 
@@ -17,9 +14,9 @@ trait SparseFeature extends Feature {
   val featureName: String
   val fp: EncodingFingerprint
 
-  override def getSchema(): Seq[StructField] = {
+  override def getSchema: Seq[StructField] = {
     val schema = Seq(
-      StructField(featureName, ArrayType(StringType, true), true)
+      StructField(featureName, ArrayType(StringType, containsNull = true), nullable = true)
     )
     schema
   }

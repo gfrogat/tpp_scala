@@ -2,10 +2,7 @@ package at.jku.ml.features
 
 import de.zbit.jcmapper.fingerprinters.FingerPrinterFactory.FingerprintType
 import de.zbit.jcmapper.fingerprinters.features.IFeature
-import de.zbit.jcmapper.fingerprinters.{
-  EncodingFingerprint,
-  FingerPrinterFactory
-}
+import de.zbit.jcmapper.fingerprinters.{EncodingFingerprint, FingerPrinterFactory}
 import org.apache.spark.sql.types._
 import org.openscience.cdk.interfaces.IAtomContainer
 
@@ -17,18 +14,18 @@ trait FrequencyFeature extends Feature {
   val featureName: String
   val fp: EncodingFingerprint
 
-  override def getSchema(): Seq[StructField] = {
+  override def getSchema: Seq[StructField] = {
     val schema = Seq(
       StructField(
         featureName.concat("_index"),
-        ArrayType(StringType, true),
-        true
+        ArrayType(StringType, containsNull = true),
+        nullable = true
       ),
       StructField(
         featureName
           .concat("_freq"),
-        ArrayType(DoubleType, true),
-        true
+        ArrayType(DoubleType, containsNull = true),
+        nullable = true
       )
     )
     schema

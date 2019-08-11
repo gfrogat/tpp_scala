@@ -1,4 +1,4 @@
-package at.jku.ml
+package at.jku.ml.util
 
 import java.io.ByteArrayInputStream
 

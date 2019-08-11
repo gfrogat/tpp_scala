@@ -1,25 +1,19 @@
 package at.jku.ml.features
 
 import org.apache.spark.sql.types._
-import org.openscience.cdk.interfaces.IAtomContainer
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import org.openscience.cdk.fingerprint.IFingerprinter
-import org.openscience.cdk.fingerprint.PubchemFingerprinter
-import org.openscience.cdk.interfaces.IChemObjectBuilder
 import org.openscience.cdk.DefaultChemObjectBuilder
-import org.openscience.cdk.fingerprint.IBitFingerprint
+import org.openscience.cdk.fingerprint.{IFingerprinter, PubchemFingerprinter}
+import org.openscience.cdk.interfaces.{IAtomContainer, IChemObjectBuilder}
 
-import util.{Try, Success}
+import scala.util.{Success, Try}
 
 trait BitFeature extends Feature {
   val featureName: String
   val fp: IFingerprinter
 
-  override def getSchema(): Seq[StructField] = {
+  override def getSchema: Seq[StructField] = {
     val schema = Seq(
-      StructField(featureName, ArrayType(IntegerType, true), true)
+      StructField(featureName, ArrayType(IntegerType, containsNull = true), nullable = true)
     )
     schema
   }

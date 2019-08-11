@@ -1,10 +1,10 @@
 package at.jku.ml
 
-import at.jku.ml.features.SparseFeature
-import org.apache.spark.sql.types._
+import at.jku.ml.features.{Feature, SparseFeature}
 import de.zbit.jcmapper.fingerprinters.EncodingFingerprint
 import de.zbit.jcmapper.fingerprinters.topological.Encoding2D
 import de.zbit.jcmapper.tools.moltyping.enumerations.EnumerationsAtomTypes.AtomLabelType
+import org.apache.spark.sql.types._
 
 object SparseConfig {
   object ECFC4 extends SparseFeature {
@@ -58,14 +58,14 @@ object SparseConfig {
     fp.asInstanceOf[Encoding2D].setSearchDepth(searchDepth)
   }
 
-  def getFeatures(): Seq[SparseFeature] = {
+  def getFeatures: Seq[SparseFeature] = {
     ECFC4 :: DFS8 :: ECFC6 :: Nil
   }
 
-  def getSchema(): StructType = {
-    val fields: Seq[StructField] = getFeatures().flatMap {
-      sparseFeature: SparseFeature =>
-        sparseFeature.getSchema()
+  def getSchema: StructType = {
+    val fields: Seq[StructField] = getFeatures.flatMap {
+      feature: Feature =>
+        feature.getSchema
     }
     val schema = StructType(fields)
     schema
