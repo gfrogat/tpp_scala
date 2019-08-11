@@ -8,6 +8,7 @@ scalacOptions := Seq(
   "-unchecked",
   "-encoding",
   "utf8",
+  "-Ywarn-unused",
   "-Xlint"
 )
 
@@ -16,11 +17,11 @@ val sparkVersion = "2.4.3"
 /* Exclude xml-apis to avoid dependency erros when building fat jar */
 libraryDependencies += "org.openscience.cdk" % "cdk-bundle" % "2.1.1" exclude ("xml-apis", "xml-apis")
 libraryDependencies += "de.zbit.jcmapper" % "jcompoundmapper" % "1.1" exclude ("xml-apis", "xml-apis")
-libraryDependencies += "com.github.scopt" %% "scopt" % "3.7.1"
-libraryDependencies += "org.apache.spark" %% "spark-core" % sparkVersion //% "provided"
-libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion //% "provided"
+libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.0-RC2"
+libraryDependencies += "org.apache.spark" %% "spark-core" % sparkVersion % "provided"
+libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion % "provided"
 
-mainClass := Some("at.jku.ml.SparseFeatureCalculator")
+//mainClass := Some("at.jku.ml.FeatureCalculator")
 
 assemblyMergeStrategy in assembly := {
   case "header.txt"       => MergeStrategy.discard
