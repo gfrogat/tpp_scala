@@ -9,11 +9,16 @@ import scala.util.{Success, Try}
 
 trait BitFeature extends Feature {
   val featureName: String
+  val fpType: String
   val fp: IFingerprinter
 
   override def getSchema: Seq[StructField] = {
-    val schema = Seq(
-      StructField(featureName, ArrayType(IntegerType, containsNull = true), nullable = true)
+    val schema: Seq[StructField] = Seq(
+      StructField(
+        featureName,
+        ArrayType(IntegerType, containsNull = true),
+        nullable = true
+      )
     )
     schema
   }
@@ -23,7 +28,7 @@ trait BitFeature extends Feature {
     new PubchemFingerprinter(builder)
   }
 
-  def initializeFeature(fpType: String): IFingerprinter = {
+  def initializeFeature(): IFingerprinter = {
     fpType match {
       case "PubChemFP" => initializePubchemfingerprinter()
       case _           => throw new IllegalArgumentException("fpType is not supported")

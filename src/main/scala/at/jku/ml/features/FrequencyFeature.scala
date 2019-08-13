@@ -2,7 +2,10 @@ package at.jku.ml.features
 
 import de.zbit.jcmapper.fingerprinters.FingerPrinterFactory.FingerprintType
 import de.zbit.jcmapper.fingerprinters.features.IFeature
-import de.zbit.jcmapper.fingerprinters.{EncodingFingerprint, FingerPrinterFactory}
+import de.zbit.jcmapper.fingerprinters.{
+  EncodingFingerprint,
+  FingerPrinterFactory
+}
 import org.apache.spark.sql.types._
 import org.openscience.cdk.interfaces.IAtomContainer
 
@@ -12,19 +15,14 @@ import scala.util.{Success, Try}
 
 trait FrequencyFeature extends Feature {
   val featureName: String
+  val fpType: String
   val fp: EncodingFingerprint
 
   override def getSchema: Seq[StructField] = {
-    val schema = Seq(
+    val schema: Seq[StructField] = Seq(
       StructField(
-        featureName.concat("_index"),
-        ArrayType(StringType, containsNull = true),
-        nullable = true
-      ),
-      StructField(
-        featureName
-          .concat("_freq"),
-        ArrayType(DoubleType, containsNull = true),
+        featureName,
+        MapType(StringType, DoubleType, valueContainsNull = false),
         nullable = true
       )
     )
@@ -36,8 +34,11 @@ trait FrequencyFeature extends Feature {
     FingerPrinterFactory.getFingerprinter(fingerprintType)
   }
 
-  def initializeFeature(fpType: String): EncodingFingerprint = {
+  def initializeFeature(): EncodingFingerprint = {
     fpType match {
+      case "ECFC"   => initializeFingerprinter("ECFC")
+      case "DFS"    => initializeFingerprinter("DFS")
+      case "ECFP"   => initializeFingerprinter("ECFP")
       case "CATS2D" => initializeFingerprinter("CATS2D")
       case "SHED"   => initializeFingerprinter("SHED")
       case _        => throw new IllegalArgumentException("fpType is not supported")
@@ -46,24 +47,37 @@ trait FrequencyFeature extends Feature {
 
   def computeFrequencyFeature(
       molecule: IAtomContainer
-  ): Try[(Seq[String], Seq[Double])] =
+  ): Try[Map[String, Double]] =
     Try {
       val features: mutable.Buffer[IFeature] =
         fp.getFingerprint(molecule).asScala
-      val combinedFeatures: Seq[(String, Double)] = features
-        .map { feature: IFeature =>
-          (feature.featureToString(true), feature.getValue())
+
+      fpType match {
+        case "ECFC" | "DFS" | "ECFP" => {
+          features
+            .map { feature: IFeature =>
+              feature.featureToString(true)
+            }
+            .groupBy(identity)
+            .mapValues(_.size.toDouble)
         }
-        .filter {
-          case (_, num) => num != 0.0
+        case "SHED" | "CATS2D" => {
+          features
+            .map { feature: IFeature =>
+              (feature.featureToString(true), feature.getValue)
+            }
+            .filter {
+              case (_, num) => num != 0.0
+            }
+            .toMap
         }
-      combinedFeatures.unzip
+      }
     }
 
-  def computeFeature(molecule: IAtomContainer): (Seq[String], Seq[Double]) = {
+  def computeFeature(molecule: IAtomContainer): Map[String, Double] = {
     computeFrequencyFeature(molecule) match {
       case Success(features) => features
-      case _                 => (null, null)
+      case _                 => null
     }
   }
 }

@@ -1,7 +1,7 @@
 package at.jku.ml
 
+import at.jku.ml.features.{BitFeature, Feature, FrequencyFeature}
 import org.apache.spark.sql.types._
-import at.jku.ml.features.{Feature, BitFeature, FrequencyFeature}
 import org.openscience.cdk.fingerprint.IFingerprinter
 import de.zbit.jcmapper.fingerprinters.EncodingFingerprint
 import de.zbit.jcmapper.fingerprinters.topological.Encoding2D
@@ -13,16 +13,16 @@ object SemiSparseConfig {
     override val featureName: String = "PubChem"
 
     // PubChemFingerprinter does not take any arguments
-    val fpType: String = "PubChemFP"
-    override lazy val fp: IFingerprinter = initializeFeature(fpType)
+    override val fpType: String = "PubChemFP"
+    override lazy val fp: IFingerprinter = initializeFeature()
   }
 
   object CATS2D extends FrequencyFeature {
     override val featureName: String = "CATS2D"
 
     // Fingerprinting Algorithm -- (flag: -c)
-    val fpType: String = "CATS2D"
-    override lazy val fp: EncodingFingerprint = initializeFeature(fpType)
+    override val fpType: String = "CATS2D"
+    override lazy val fp: EncodingFingerprint = initializeFeature()
 
     // Atom Type -- (flag: -a)
     val atomType: String = "ELEMENT_SYMBOL"
@@ -38,8 +38,8 @@ object SemiSparseConfig {
     override val featureName: String = "SHED"
 
     // Fingerprinting Algorithm -- (flag: -c)
-    val fpType: String = "SHED"
-    override lazy val fp: EncodingFingerprint = initializeFeature(fpType)
+    override val fpType: String = "SHED"
+    override lazy val fp: EncodingFingerprint = initializeFeature()
 
     // Atom Type -- (flag: -a)
     val atomType: String = "ELEMENT_SYMBOL"

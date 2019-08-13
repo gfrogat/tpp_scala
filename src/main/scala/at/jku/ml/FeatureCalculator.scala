@@ -3,48 +3,64 @@ package at.jku.ml
 import java.io.IOException
 import java.nio.file.{Files, Path, Paths}
 
-import at.jku.ml.features.{BitFeature, FrequencyFeature, SparseFeature}
+import at.jku.ml.features.{BitFeature, FrequencyFeature}
 import at.jku.ml.util.MolFileReader
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions._
+import org.openscience.cdk.interfaces.IAtomContainer
 import scopt.OParser
+
+import scala.util.Success
 
 object FeatureCalculator {
   val calculateSparseFeatures: UserDefinedFunction = udf(
     (molFile: String) => {
-      val molecule = MolFileReader.parseMolFile(molFile)
-      val sparseFeatures: Seq[Seq[String]] = SparseConfig.getFeatures
-        .map { feature: SparseFeature =>
-          feature.computeFeature(molecule)
-        }
+      def computeFeatures(molecule: IAtomContainer): Row = {
+        val sparseFeatures: Seq[Map[String, Double]] =
+          SparseConfig.getFeatures
+            .map { feature: FrequencyFeature =>
+              feature.computeFeature(molecule)
+            }
 
-      Row(sparseFeatures: _*)
+        Row(sparseFeatures: _*)
+      }
+
+      // Handle CDK parsing errors
+      MolFileReader.parseMolFile(molFile) match {
+        case Success(molecule) => computeFeatures(molecule)
+        case _ => Row(Array.fill(SparseConfig.getFeatures.length)(null): _*)
+      }
     },
     SparseConfig.getSchema
   )
 
   val calculateSemiSparseFeatures: UserDefinedFunction = udf(
     (molFile: String) => {
-      val molecule = MolFileReader.parseMolFile(molFile)
-      val frequencyFeatures: Seq[Seq[Any]] =
-        SemiSparseConfig.getFrequencyFeatures
-          .map { feature: FrequencyFeature =>
-            feature.computeFeature(molecule)
-          }
-          .flatMap { tuple =>
-            List(tuple._1, tuple._2)
-          }
+      def computeFeatures(molecule: IAtomContainer): Row = {
+          val frequencyFeatures: Seq[Map[String, Double]] =
+            SemiSparseConfig.getFrequencyFeatures
+              .map { feature: FrequencyFeature =>
+                feature.computeFeature(molecule)
+              }
 
-      val bitFeatures: Seq[Seq[Int]] =
-        SemiSparseConfig.getBitFeatures.map { feature: BitFeature =>
-          feature.computeFeature(molecule)
-        }
+          val bitFeatures: Seq[Seq[Int]] =
+            SemiSparseConfig.getBitFeatures.map { feature: BitFeature =>
+              feature.computeFeature(molecule)
+            }
 
-      Row.merge(
-        Row(bitFeatures: _*),
-        Row(frequencyFeatures: _*)
-      )
+          Row.merge(
+            Row(bitFeatures: _*),
+            Row(frequencyFeatures: _*)
+          )
+      }
+
+      // Handle CDK parsing errors
+      MolFileReader.parseMolFile(molFile) match {
+        case Success(molecule) => computeFeatures(molecule)
+        case _ =>
+          Row(Array.fill(SemiSparseConfig.getFeatures.length)(null): _*)
+      }
     },
     SemiSparseConfig.getSchema
   )
@@ -54,7 +70,8 @@ object FeatureCalculator {
         inputPath: String = null,
         outputPath: String = null,
         overwrite: Boolean = false,
-        featureType: String = "sparse"
+        featureType: String = "sparse",
+        numPartitions: Int = 200
     )
 
     val builder = OParser.builder[Config]
@@ -73,6 +90,9 @@ object FeatureCalculator {
           .valueName("<file>")
           .action((x, c) => c.copy(outputPath = x))
           .text("output parquet file (required)"),
+        opt[Unit]("overwrite")
+          .action((_, c) => c.copy(overwrite = true))
+          .text("Overwrite output parquet file"),
         opt[String]("features")
           .valueName("<feature>")
           .action((x, c) => c.copy(featureType = x))
@@ -85,9 +105,11 @@ object FeatureCalculator {
               }
           )
           .text("feature type to compute [sparse, semisparse]"),
-        opt[Unit]("overwrite")
-          .action((_, c) => c.copy(overwrite = true))
-          .text("Overwrite output parquet file")
+        opt[Int]("npartitions")
+          .required()
+          .valueName("<int>")
+          .action((x, c) => c.copy(numPartitions = x))
+          .text("number of partitions")
       )
     }
 
@@ -97,10 +119,11 @@ object FeatureCalculator {
         val outputPath: Path = Paths.get(config.outputPath)
         val featureType: String = config.featureType
         val writeMode: String = if (config.overwrite) "overwrite" else "error"
+        val numPartitions: Int = config.numPartitions
 
         val descriptorColumnName: String = featureType + "_descriptors"
         val descriptorSchema = featureType match {
-          case "sparse" => SparseConfig.getSchema
+          case "sparse"     => SparseConfig.getSchema
           case "semisparse" => SemiSparseConfig.getSchema
         }
 
@@ -151,17 +174,30 @@ object FeatureCalculator {
             "spark.serializer",
             "org.apache.spark.serializer.KryoSerializer"
           )
+          .config(
+            "spark.executor.cores", 1
+          )
           .getOrCreate()
 
         try {
-          val df = spark.read.parquet(inputPath.toString).limit(1000)
-          //.repartition(200)
+          val df =
+            spark.read.parquet(inputPath.toString).repartition(numPartitions)
 
-          val dfColumns = df.schema.fields.map{f => col(f.name)}
-          val descriptorColumns = descriptorSchema.fields.map{f => col(descriptorColumnName + "." + f.name)}
+          val dfColumns = df.schema.fields.map { f =>
+            col(f.name)
+          }
+          val descriptorColumns = descriptorSchema.fields.map { f =>
+            col(descriptorColumnName + "." + f.name)
+          }
           val queryColumns = dfColumns ++ descriptorColumns
 
-          val dfResult = df.withColumn(descriptorColumnName, calculateFeatures(col("mol_file"))).select(queryColumns: _*)
+          val dfResult = df
+            .withColumn(
+              descriptorColumnName,
+              calculateFeatures(col("mol_file").getItem(0))
+            )
+            .select(queryColumns: _*)
+
           dfResult.write.mode(writeMode).parquet(outputPath.toString)
         } finally {
           spark.stop()
