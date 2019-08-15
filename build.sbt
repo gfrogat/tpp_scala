@@ -51,4 +51,4 @@ assemblyShadeRules in assembly := Seq(
     .inAll
 )
 
-logLevel in assembly := Level.Debug
+//logLevel in assembly := Level.Debug
